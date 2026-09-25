@@ -1,40 +1,50 @@
 # skills
 
-跨项目复用的 Agent Skills 合集。开发新项目时把仓库地址给 agent，它就能照同一套标准干活，不用每个仓库重新交代一遍。
+跨项目复用的 Agent Skills 合集。开发新项目时把仓库地址给 Agent，它就能照同一套标准干活，不用每个仓库重新交代一遍。
 
 ## 用法
 
-克隆到本地，把需要的技能目录复制到技能目录下。
+以 Pi 为例。Pi 会扫描两个技能目录，把技能目录复制进去即可，不用改配置：
 
-装到全局，所有项目共用：
+- 全局 `~/.pi/agent/skills/`，所有项目共用。
+- 项目级 `<项目>/.pi/skills/`，只对该项目生效，Pi 首次读取时会要求信任该项目。
+
+装到全局：
 
 ```bash
 git clone https://github.com/huaxianyan/skills.git
-cp -r skills/chinese-tech-writing skills/release-notes-standard ~/.workbuddy/skills/
+cp -r skills/chinese-tech-writing skills/release-notes-standard ~/.pi/agent/skills/
 ```
 
 只装到某个项目，不影响其他项目：
 
 ```bash
 git clone https://github.com/huaxianyan/skills.git /tmp/skills
-mkdir -p <项目路径>/.workbuddy/skills
-cp -r /tmp/skills/release-notes-standard <项目路径>/.workbuddy/skills/
+mkdir -p <项目路径>/.pi/skills
+cp -r /tmp/skills/release-notes-standard <项目路径>/.pi/skills/
 ```
 
-用其他支持 Agent Skills 的工具时，把目标目录换成对应的技能目录即可，
-例如 Claude Code 是 `~/.claude/skills/` 或 `<项目>/.claude/skills/`。
+临时加载一次，不改任何目录：
 
-也可以不动手，直接在对话里说清需求并给出仓库地址，让 agent 自己克隆、挑技能、装到项目里。
+```bash
+pi --skill /tmp/skills/release-notes-standard
+```
 
-### 交给 agent 的一句话
+装好后不需要额外配置，Pi 会在任务匹配时自动加载。想手动指定用 `/skill:chinese-tech-writing`，改过技能内容后跑一次 `/reload` 生效。
+
+用其他支持 Agent Skills 的工具时，把目标目录换成对应的技能目录即可，例如 Claude Code 是 `~/.claude/skills/` 或 `<项目>/.claude/skills/`。
+
+也可以不动手，直接在对话里说清需求并给出仓库地址，让 Agent 自己克隆、挑技能、装到项目里。
+
+### 交给 Agent 的一句话
 
 ```
 我要开发 <项目名>。先把这两个规范装到项目里：
 https://github.com/huaxianyan/skills
-装 chinese-tech-writing 和 release-notes-standard，放到本项目的 .workbuddy/skills/ 下面。
+装 chinese-tech-writing 和 release-notes-standard，放到本项目的 .pi/skills/ 下面。
 ```
 
-agent 会克隆仓库、挑出这两个技能、放进项目的技能目录。之后写文档、改注释、发版本就都按这套规范来。
+Agent 会克隆仓库、挑出这两个技能、放进项目的技能目录。之后写文档、改注释、发版本就都按这套规范来。
 
 ## 包含的技能
 
