@@ -4,7 +4,13 @@
 
 ## 用法
 
-以 Pi 为例。Pi 会扫描两个技能目录，把技能目录复制进去即可，不用改配置：
+以 Pi 为例。Pi 可以直接装，仓库带了 `pi` 清单，两个技能会一起注册：
+
+```bash
+pi install git:github.com/huaxianyan/skills
+```
+
+也可以把技能目录复制过去，适合不想改 `pi` 设置、或者用的是别的工具的场合。Pi 会扫描两个位置：
 
 - 全局 `~/.pi/agent/skills/`，所有项目共用。
 - 项目级 `<项目>/.pi/skills/`，只对该项目生效，Pi 首次读取时会要求信任该项目。
@@ -74,6 +80,8 @@ GitHub Release 发布说明与页面的统一规范。
 ## 约定
 
 - 目录结构是 `<技能名>/SKILL.md`，可以带 `references/` 与 `scripts/`。
+- 根目录的 `package.json` 只用来支持 `pi install`，里面 `pi` 清单逐个列出技能目录。
+  加技能或改目录名时，这里要跟着改。
 - frontmatter 只写 `name` 与 `description`，兼容各类支持 Agent Skills 的工具。
 - 脚本只用标准库，Python 3.7 以上能跑。
 
