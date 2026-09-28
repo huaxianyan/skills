@@ -63,10 +63,26 @@ URL_HINT = ("http://", "https://", "mailto:")
 URL_SENSITIVE = ("中英未空格", "半角标点接中文", "半角括号接中文")
 # 引号风格：默认直角引号，弯引号报问题；--allow-curly-quotes 关闭
 CURLY_QUOTES = re.compile(r"[\u201c\u201d\u2018\u2019]")
+# 规范文档里用反例解释规则，这些行不参与判定
+REVERSAL_RE = re.compile(r"^\s*(?:[-*+]\s*)?差[：:]")
 # 代码文件只看注释行，免得字符串字面量与格式串被当成文案问题
 CODE_EXT = {".kt", ".kts", ".java", ".py", ".js", ".ts", ".cs", ".sh", ".c", ".cpp",
             ".h", ".hpp", ".go", ".rs", ".rb", ".swift", ".m", ".mm", ".php", ".lua"}
 COMMENT_MARKS = ("//", "#", "*", "/*", "<!--", "--")
+
+
+def use_utf8_output():
+    """把输出固定成 UTF-8。
+
+    Windows 控制台默认 GBK，详情里的间隔号、emoji 这类字符打印时会抛
+    UnicodeEncodeError，把扫描器自己搞挂，而退出码仍是非零，容易被当成文案有问题。
+    errors 用 replace 兜底，个别字符编不出来就退化成问号，不中断扫描。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
 
 
 def strip_quoted(line):
@@ -123,7 +139,7 @@ def scan(path, root, allow_curly=False):
             continue
         if comments_only and not any(s.startswith(mark) for mark in COMMENT_MARKS):
             continue
-        if s.startswith("差：") or s.startswith("- 差："):
+        if REVERSAL_RE.match(s):
             continue
         # 引号与行内代码里的内容不参与判定，规范文件里的示例才不会被当成问题
         body = strip_quoted(line)
@@ -146,9 +162,10 @@ def scan(path, root, allow_curly=False):
             rows.append((rel, i, "中文紧贴行内代码", line.strip()[:40], s[:100]))
         if "\u2014\u2014" in body:
             rows.append((rel, i, "破折号", "\u2014\u2014", s[:100]))
-        # 长句与一逗到底只看正文行，跳过行注释与表格行
+        # 长句与一逗到底只看正文行，跳过行注释与表格行；
+        # 用 body 而不是 line，引号与行内代码里的示例不参与计数
         if not s.startswith("//") and not s.startswith("*") and not s.startswith("|"):
-            for sent in re.split(r"[。！？；]", line):
+            for sent in re.split(r"[。！？；]", body):
                 n_cjk = len(re.findall(CJK_CLS, sent))
                 if n_cjk >= 60:
                     rows.append((rel, i, "长句(%d字)" % n_cjk, sent[:30], s[:100]))
@@ -188,6 +205,7 @@ def collect_files(paths, exts):
 
 
 def main():
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("paths", nargs="*", default=["."])

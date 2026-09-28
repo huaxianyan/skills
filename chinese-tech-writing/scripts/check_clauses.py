@@ -29,6 +29,46 @@ SKIP_DIR = {".git", ".gradle", ".kotlin", ".idea", "build", ".workbuddy", "node_
             "target", "dist", "out", "venv", ".venv", "__pycache__", "Pods", "DerivedData",
             ".next", ".nuxt", "bin", "obj", "vendor"}
 
+# 代码文件只看注释行，免得字符串字面量与格式串被当成文案
+CODE_EXT = {".kt", ".kts", ".java", ".py", ".js", ".ts", ".cs", ".sh", ".c", ".cpp",
+            ".h", ".hpp", ".go", ".rs", ".rb", ".swift", ".m", ".mm", ".php", ".lua"}
+COMMENT_MARKS = ("//", "#", "*", "/*", "<!--", "--")
+# 规范文档里用反例解释规则，这些行不参与统计
+REVERSAL_RE = re.compile(r"^\s*(?:[-*+]\s*)?差[：:]")
+
+
+def mask_examples(line):
+    """把行内代码、引号、HTML 标签与链接目标换成等长空格，只留下正文。
+
+    规范文档会用引号或行内代码引用示例，剥掉后示例本身不会被当成超长句。
+    只替换内容，不删字符（链接文字除外），长度不变。
+    """
+
+    def blank(match):
+        return " " * len(match.group(0))
+
+    out = re.sub(r"`[^`]*`", blank, line)
+    out = re.sub(r"\u300c[^\u300d]*\u300d", blank, out)
+    out = re.sub(r"\u201c[^\u201d]*\u201d", blank, out)
+    out = re.sub(r"<[^>]+>", blank, out)
+    # 链接只保留文字，目标里的路径与参数不参与计数
+    out = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", out)
+    return out
+
+
+def use_utf8_output():
+    """把输出固定成 UTF-8。
+
+    Windows 控制台默认 GBK，详情里的间隔号、emoji 这类字符打印时会抛
+    UnicodeEncodeError，把扫描器自己搞挂，而退出码仍是非零，容易被当成文案有问题。
+    errors 用 replace 兜底，个别字符编不出来就退化成问号，不中断扫描。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
 
 def cjk_len(text):
     return len(re.findall(CJK_CLS, text))
@@ -43,6 +83,7 @@ def scan(path, root, max_sentence, max_clause):
     if not re.search(CJK_CLS, text):
         return []
 
+    comments_only = os.path.splitext(path)[1].lower() in CODE_EXT
     rows = []
     in_fence = False
     in_front_matter = False
@@ -60,12 +101,14 @@ def scan(path, root, max_sentence, max_clause):
             continue
         if in_fence or "http://" in line or "https://" in line:
             continue
+        if comments_only and not any(s.startswith(mark) for mark in COMMENT_MARKS):
+            continue
+        if REVERSAL_RE.match(s):
+            continue
         if s.startswith("//") or s.startswith("*") or s.startswith("|"):
             continue
-        # 行内代码与链接文字不参与计数
-        body = re.sub(r"`[^`]*`", "X", line)
-        body = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", body)
-        body = re.sub(r"<[^>]+>", " ", body)
+        # 行内代码与引号里的内容不参与计数
+        body = mask_examples(line)
         for sent in SENT_SPLIT.split(body):
             n = cjk_len(sent)
             if n > max_sentence:
@@ -93,6 +136,7 @@ def collect_files(paths, exts):
 
 
 def main():
+    use_utf8_output()
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("paths", nargs="*", default=["."])

@@ -59,6 +59,22 @@ ELLIPSIS_WRONG_RE = re.compile(r"\.\.\.|。。。")
 LINK_LEFT_RE = re.compile(rf"{CJK_CLS}!?\[[^\]]+\]\([^)]+\)")
 LINK_RIGHT_RE = re.compile(r"\]\([^)]+\){CJK_CLS}")
 URL_HINT = ("http://", "https://", "mailto:")
+# 规范文档里用反例解释规则，这些行不参与判定
+REVERSAL_RE = re.compile(r"^\s*(?:[-*+]\s*)?差[：:]")
+
+
+def use_utf8_output():
+    """把输出固定成 UTF-8。
+
+    Windows 控制台默认 GBK，详情里的间隔号、emoji 这类字符打印时会抛
+    UnicodeEncodeError，把扫描器自己搞挂，而退出码仍是非零，容易被当成文案有问题。
+    errors 用 replace 兜底，个别字符编不出来就退化成问号，不中断扫描。
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
 
 
 def mask_inline_code(line):
@@ -124,6 +140,8 @@ def scan(path, root, opts):
             continue
         if line.strip() in ("---", "+++") or line.strip().startswith(":::"):
             continue
+        if REVERSAL_RE.match(line):
+            continue
 
         has_url = any(h in line for h in URL_HINT)
         report = lambda name, detail="": rows.append((rel, i, name, detail))
@@ -180,6 +198,7 @@ def collect_files(paths, exts):
 
 
 def main():
+    use_utf8_output()
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("paths", nargs="*", default=["."],
