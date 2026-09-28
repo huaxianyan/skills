@@ -52,10 +52,17 @@ RE_RULES = (
     ("省略号写法", re.compile(r"\.\.\.|。。。")),
     ("中文里的感叹号", re.compile(r"%s！" % CJK_CLS)),
     ("进行+动词", re.compile(r"进行(?![中时曲性行])(?=%s)" % CJK_CLS)),
+    ("数字紧贴单位", re.compile(
+        r"(?<![A-Za-z0-9])\d+(?:\.\d+)?(?:ms|fps|Hz|kHz|MHz|GHz|px|dp|sp|dpi"
+        r"|KiB|MiB|GiB|KB|MB|GB|TB|Gbps|Mbps)(?![A-Za-z0-9])")),
 )
-URL_HINT = ("http://", "https://")
+CJK_ONE = re.compile(CJK_CLS)
+INLINE_CODE_RX = re.compile(r"`+[^`]+`+")
+URL_HINT = ("http://", "https://", "mailto:")
 # 这几类规则在含 URL 的行上误报太多，跳过
 URL_SENSITIVE = ("中英未空格", "半角标点接中文", "半角括号接中文")
+# 引号风格：默认直角引号，弯引号报问题；--allow-curly-quotes 关闭
+CURLY_QUOTES = re.compile(r"[\u201c\u201d\u2018\u2019]")
 # 代码文件只看注释行，免得字符串字面量与格式串被当成文案问题
 CODE_EXT = {".kt", ".kts", ".java", ".py", ".js", ".ts", ".cs", ".sh", ".c", ".cpp",
             ".h", ".hpp", ".go", ".rs", ".rb", ".swift", ".m", ".mm", ".php", ".lua"}
@@ -78,7 +85,22 @@ def strip_quoted(line):
     return out
 
 
-def scan(path, root):
+def tight_inline_code(line):
+    """行内代码紧贴中文：中文与 `` `code` `` 之间应有半角空格。"""
+    for m in INLINE_CODE_RX.finditer(line):
+        left = line[m.start() - 1] if m.start() > 0 else ""
+        right = line[m.end()] if m.end() < len(line) else ""
+        if CJK_ONE.fullmatch(left) or CJK_ONE.fullmatch(right):
+            return True
+    return False
+
+
+def curly_quote_hit(line):
+    """弯引号检查。先把行内代码剥掉，被代码包住的示例不算问题。"""
+    return bool(CURLY_QUOTES.search(INLINE_CODE_RX.sub(" ", line)))
+
+
+def scan(path, root, allow_curly=False):
     """扫描一个文件，返回问题行与统计行。"""
     rel = os.path.relpath(path, root).replace("\\", "/")
     try:
@@ -89,6 +111,7 @@ def scan(path, root):
         return [], None
 
     comments_only = os.path.splitext(path)[1].lower() in CODE_EXT
+    curly_span = len(re.findall("[\u201c\u201d]", text))
     rows = []
     in_fence = False
     for i, line in enumerate(text.splitlines(), 1):
@@ -117,6 +140,10 @@ def scan(path, root):
         for w in AI_SOFT_WORDS:
             if w in body:
                 rows.append((rel, i, "存疑:" + w, w, s[:100]))
+        if not allow_curly and curly_quote_hit(line):
+            rows.append((rel, i, "弯引号", line.strip()[:40], s[:100]))
+        if not has_url and tight_inline_code(line):
+            rows.append((rel, i, "中文紧贴行内代码", line.strip()[:40], s[:100]))
         if "\u2014\u2014" in body:
             rows.append((rel, i, "破折号", "\u2014\u2014", s[:100]))
         # 长句与一逗到底只看正文行，跳过行注释与表格行
@@ -128,7 +155,8 @@ def scan(path, root):
                 if sent.count("，") >= 5:
                     rows.append((rel, i, "一逗到底(%d逗号)" % sent.count("，"), "，", s[:100]))
 
-    n_dash = len(re.findall("\u2014\u2014", text))
+    # 破折号总数只统计正文里的，文档里用行内代码写的规则示例不算
+    n_dash = len(re.findall("\u2014\u2014", INLINE_CODE_RX.sub(" ", text)))
     if n_dash > 2:
         rows.append((rel, 0, "破折号总数", "x%d" % n_dash, ""))
     lower = rel.lower()
@@ -138,7 +166,7 @@ def scan(path, root):
             rows.append((rel, 0, "分号(该文件禁用)", "x%d" % n, ""))
 
     straight = len(re.findall("[\u300c\u300d]", text))
-    curly = len(re.findall("[\u201c\u201d]", text))
+    curly = curly_span
     stat = (rel, 0, "统计", "\u884c\u5c3e=%s \u5f15\u53f7=\u300c\u300dx%d \u201c\u201dx%d \u7834\u6298\u53f7=%d \u5206\u53f7=%d" % (
         "CRLF" if "\r\n" in text else "LF", straight, curly, n_dash, text.count("；")), "")
     return rows, stat
@@ -165,6 +193,8 @@ def main():
     parser.add_argument("paths", nargs="*", default=["."])
     parser.add_argument("--ext", help="comma separated extension list, overrides the default")
     parser.add_argument("--only-issues", action="store_true", help="hide the per-file stats")
+    parser.add_argument("--allow-curly-quotes", action="store_true",
+                        help="do not report curly quotes (project uses them)")
     parser.add_argument("--quiet", action="store_true", help="print a single summary line")
     args = parser.parse_args()
 
@@ -186,7 +216,7 @@ def main():
 
     issues, stats = [], []
     for path in collect_files(paths, exts):
-        rows, stat = scan(path, root)
+        rows, stat = scan(path, root, args.allow_curly_quotes)
         issues.extend(rows)
         if stat:
             stats.append(stat)

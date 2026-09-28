@@ -65,6 +65,7 @@ def scan(path, root, max_sentence, max_clause):
         # 行内代码与链接文字不参与计数
         body = re.sub(r"`[^`]*`", "X", line)
         body = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", body)
+        body = re.sub(r"<[^>]+>", " ", body)
         for sent in SENT_SPLIT.split(body):
             n = cjk_len(sent)
             if n > max_sentence:

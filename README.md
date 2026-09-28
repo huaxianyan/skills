@@ -4,7 +4,7 @@
 
 ## 用法
 
-以 Pi 为例。Pi 可以直接装，仓库带了 `pi` 清单，两个技能会一起注册：
+以 Pi 为例。Pi 可以直接装，仓库带了 `pi` 清单，三个技能会一起注册：
 
 ```bash
 pi install git:github.com/huaxianyan/skills
@@ -19,7 +19,7 @@ pi install git:github.com/huaxianyan/skills
 
 ```bash
 git clone https://github.com/huaxianyan/skills.git
-cp -r skills/chinese-tech-writing skills/release-notes-standard ~/.pi/agent/skills/
+cp -r skills/chinese-tech-writing skills/project-conventions skills/release-notes-standard ~/.pi/agent/skills/
 ```
 
 只装到某个项目，不影响其他项目：
@@ -27,13 +27,13 @@ cp -r skills/chinese-tech-writing skills/release-notes-standard ~/.pi/agent/skil
 ```bash
 git clone https://github.com/huaxianyan/skills.git /tmp/skills
 mkdir -p <项目路径>/.pi/skills
-cp -r /tmp/skills/release-notes-standard <项目路径>/.pi/skills/
+cp -r /tmp/skills/project-conventions <项目路径>/.pi/skills/
 ```
 
 临时加载一次，不改任何目录：
 
 ```bash
-pi --skill /tmp/skills/release-notes-standard
+pi --skill /tmp/skills/project-conventions
 ```
 
 装好后不需要额外配置，Pi 会在任务匹配时自动加载。想手动指定用 `/skill:chinese-tech-writing`，改过技能内容后跑一次 `/reload` 生效。
@@ -45,27 +45,40 @@ pi --skill /tmp/skills/release-notes-standard
 ### 交给 Agent 的一句话
 
 ```
-我要开发 <项目名>。先把这两个规范装到项目里：
+我要开发 <项目名>。先把这个仓库里的规范装到项目里：
 https://github.com/huaxianyan/skills
-装 chinese-tech-writing 和 release-notes-standard，放到本项目的 .pi/skills/ 下面。
+装 chinese-tech-writing、project-conventions 和 release-notes-standard，放到本项目的 .pi/skills/ 下面。
 ```
 
-Agent 会克隆仓库、挑出这两个技能、放进项目的技能目录。之后写文档、改注释、发版本就都按这套规范来。
+Agent 会克隆仓库、挑出这几个技能、放进项目的技能目录。之后写文档、改注释、发版本就都按这套规范来。
 
 ## 包含的技能
 
+### project-conventions
+
+项目级开发规范与交接。四件事：
+
+- **凭据与私钥**：SSH 私钥只能让工具直接使用，不读取、不解密、不打印、不比对。连带 API token、证书私钥、keystore 口令的引用方式，读文件前的确认习惯，以及泄露后的处理。
+- **项目约定文件**：`AGENTS.md` 的分层、该写什么、不该写什么、怎么维护，以及本地文件边界。
+- **开发进度文档**：当交接记忆来写。两种可选形态、一条记录写什么、不写什么，以及交接时怎么读别人的记录。
+- **任务预期与超时**：跑耗时命令前先给预期时长，超时后先缩小范围而不是重跑，停下来的报告格式。
+
+自带 `references/handoff-template.md`，里面是可复制的进度记录模板与完整实例。
+
 ### chinese-tech-writing
 
-中文技术文案规范。约束中文与英文数字之间的空格、全角标点、长句拆解、破折号与分号的使用，
-另外带一份 AI 腔清单，逐条给出「找这种写法 → 改成」。
+中文技术文案与排版规范。管句子、段落、结构，也管空格、标点、引号。
 
-自带两个扫描脚本，只报告不改文件：
+规则来自两份来源：阮一峰《中文技术文档的写作规范》管句子与结构，《中文文案排版指北》管排版。冲突处默认两项：中文与行内代码之间留空格，简体中文用直角引号 `「」`。
+另有 AI 腔清单和默认行文风格。
 
-- `check_style.py` 查标点、空格、AI 腔词、破折号、分号、长句。
-- `check_clauses.py` 查句长，整句不超过 100 个汉字，逗号隔开的每一截不超过 30 个。
+自带三个只报告不改文件的扫描脚本：
 
-适用于写或改 README、设计文档、代码注释、提交信息、发布说明，
-也适用于给整个仓库做一次中文排版体检。
+- `check_style.py` 启发式扫描：标点、空格、AI 腔词、破折号、分号、长句。
+- `check_clauses.py` 查句长：整句不超过 100 个汉字，逗号隔开的每一截不超过 30 个。
+- `check_typography.py` 排版硬规则门禁，退出码非零即失败，适合接 CI。
+
+适用于写或改 README、设计文档、代码注释、提交信息、发布说明，也适用于给整个仓库做一次中文排版体检。
 
 ### release-notes-standard
 
