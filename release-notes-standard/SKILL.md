@@ -149,7 +149,7 @@ gh release view vX.Y.Z --json tagName,name,assets \
 直连 GitHub 慢的机器走代理下载：
 
 ```bash
-curl -sS -L --proxy http://127.0.0.1:37777 -o app-release.apk \
+curl -sS -L -o app-release.apk \
   "https://github.com/<owner>/<repo>/releases/download/vX.Y.Z/app-release.apk"
 ```
 
@@ -175,5 +175,4 @@ curl -sS -L --proxy http://127.0.0.1:37777 -o app-release.apk \
 
 ## 来源
 
-这套规范在 syncclipboard、comeback-google-pinyin-input 等项目上跑通，
-门禁脚本最早从 comeback 项目移植。
+这套规范在两个项目上跑通，门禁脚本从其中一个带发布流程的项目移植。

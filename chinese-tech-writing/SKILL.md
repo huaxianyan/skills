@@ -107,9 +107,8 @@ description: 中文技术文案与排版规范。写、改或审阅任何简体�
 
 完整英文语句内部仍用英文标点和英文引号，不把直角引号机械应用到英文正文。
 
-少数项目历史上用全角弯引号 `“ ”`。本机各仓库的实际口径是直角引号（comeback-google-pinyin-input、
-syncclipboard、notification-mirroring 都是），写这些项目时不要套用弯引号。开工前先看一眼项目的
-`AGENTS.md` 和已有文档，确认后再动手。
+- 少数项目历史上用全角弯引号 `“ ”`。这类口径由项目自己的约定文件声明，不在本规范里指名。开工前先看一眼项目的
+  `AGENTS.md` 和已有文档，确认后再动手。
 
 ## 超链接
 
@@ -232,5 +231,4 @@ python scripts/check_typography.py <文件或目录>...   # 排版硬规则，�
   两处按标准写法修正：破折号用 `——`，省略号用 `……`。
 - 空格、引号、超链接间距的规则来自《中文文案排版指北》。「默认行文风格」整理自用户长期公开写作的稳定倾向。
 - AI 腔清单和扫描脚本的思路受 [leter/zh-tech-writing](https://github.com/leter/zh-tech-writing)（MIT）启发。
-- `check_typography.py` 的判据取自 comeback-google-pinyin-input 项目里跑通的 `verify_chinese_copywriting.py`，
-  扩成通用形态。
+- `check_typography.py` 的判据取自一个已落地项目里跑通的排版门禁脚本，扩成了通用形态。

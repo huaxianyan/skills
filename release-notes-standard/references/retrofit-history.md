@@ -80,7 +80,7 @@ done
 
 ```bash
 for t in v0.1.2 v0.1.3; do
-  curl -sS -L --proxy http://127.0.0.1:37777 -o "$t.SHA256SUMS" \
+  curl -sS -L -o "$t.SHA256SUMS" \
     "https://github.com/<owner>/<repo>/releases/download/$t/SHA256SUMS"
 done
 ```
@@ -89,7 +89,7 @@ done
 
 ```bash
 for a in app-release.apk system-extension-release.apk; do
-  curl -sS -L --proxy http://127.0.0.1:37777 -o "v0.1.0.$a" \
+  curl -sS -L -o "v0.1.0.$a" \
     "https://github.com/<owner>/<repo>/releases/download/v0.1.0/$a"
 done
 sha256sum v0.1.0.app-release.apk v0.1.0.system-extension-release.apk
