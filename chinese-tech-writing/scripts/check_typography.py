@@ -61,6 +61,20 @@ LINK_RIGHT_RE = re.compile(r"\]\([^)]+\){CJK_CLS}")
 URL_HINT = ("http://", "https://", "mailto:")
 # 规范文档里用反例解释规则，这些行不参与判定
 REVERSAL_RE = re.compile(r"^\s*(?:[-*+]\s*)?差[：:]")
+# frontmatter 是机器可读元数据，不是正文
+FRONT_MATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.S)
+
+
+def mask_front_matter(text):
+    """把开头的 frontmatter 换成等长空白，只留正文。
+
+    不删字符，行号不偏移，报告里的定位照旧。
+    """
+
+    def blank(match):
+        return re.sub(r"[^\n]", " ", match.group(0))
+
+    return FRONT_MATTER_RE.sub(blank, text, count=1)
 
 
 def use_utf8_output():
@@ -123,6 +137,9 @@ def scan(path, root, opts):
         return []
     if not CJK_RE.search(text):
         return []
+
+    # frontmatter 是机器可读元数据，不是正文，不参与任一判定
+    text = mask_front_matter(text)
 
     ext = os.path.splitext(path)[1].lower()
     is_markdown = ext in (".md", ".markdown")

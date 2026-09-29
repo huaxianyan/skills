@@ -69,6 +69,20 @@ REVERSAL_RE = re.compile(r"^\s*(?:[-*+]\s*)?差[：:]")
 CODE_EXT = {".kt", ".kts", ".java", ".py", ".js", ".ts", ".cs", ".sh", ".c", ".cpp",
             ".h", ".hpp", ".go", ".rs", ".rb", ".swift", ".m", ".mm", ".php", ".lua"}
 COMMENT_MARKS = ("//", "#", "*", "/*", "<!--", "--")
+# frontmatter 是机器可读元数据，不是正文
+FRONT_MATTER_RE = re.compile(r"\A---\r?\n.*?\r?\n---\r?\n", re.S)
+
+
+def mask_front_matter(text):
+    """把开头的 frontmatter 换成等长空白，只留正文。
+
+    不删字符，行号不偏移，报告里的定位照旧。
+    """
+
+    def blank(match):
+        return re.sub(r"[^\n]", " ", match.group(0))
+
+    return FRONT_MATTER_RE.sub(blank, text, count=1)
 
 
 def use_utf8_output():
@@ -127,11 +141,19 @@ def scan(path, root, allow_curly=False):
         return [], None
 
     comments_only = os.path.splitext(path)[1].lower() in CODE_EXT
-    curly_span = len(re.findall("[\u201c\u201d]", text))
     rows = []
     in_fence = False
+    in_front_matter = False
     for i, line in enumerate(text.splitlines(), 1):
         s = line.strip()
+        # frontmatter 是机器可读元数据，不是正文，不参与任一判定
+        if i == 1 and s == "---":
+            in_front_matter = True
+            continue
+        if in_front_matter:
+            if s == "---":
+                in_front_matter = False
+            continue
         if s.startswith("```"):
             in_fence = not in_fence
             continue
@@ -172,20 +194,22 @@ def scan(path, root, allow_curly=False):
                 if sent.count("，") >= 5:
                     rows.append((rel, i, "一逗到底(%d逗号)" % sent.count("，"), "，", s[:100]))
 
+    # frontmatter 不参与全文件级统计
+    prose_text = mask_front_matter(text)
     # 破折号总数只统计正文里的，文档里用行内代码写的规则示例不算
-    n_dash = len(re.findall("\u2014\u2014", INLINE_CODE_RX.sub(" ", text)))
+    n_dash = len(re.findall("\u2014\u2014", INLINE_CODE_RX.sub(" ", prose_text)))
     if n_dash > 2:
         rows.append((rel, 0, "破折号总数", "x%d" % n_dash, ""))
     lower = rel.lower()
     if lower.endswith("readme.md") or "/release-notes/" in lower or "/releases/" in lower:
-        n = text.count("；")
+        n = prose_text.count("；")
         if n:
             rows.append((rel, 0, "分号(该文件禁用)", "x%d" % n, ""))
 
-    straight = len(re.findall("[\u300c\u300d]", text))
-    curly = curly_span
+    straight = len(re.findall("[\u300c\u300d]", prose_text))
+    curly = len(re.findall("[\u201c\u201d]", prose_text))
     stat = (rel, 0, "统计", "\u884c\u5c3e=%s \u5f15\u53f7=\u300c\u300dx%d \u201c\u201dx%d \u7834\u6298\u53f7=%d \u5206\u53f7=%d" % (
-        "CRLF" if "\r\n" in text else "LF", straight, curly, n_dash, text.count("；")), "")
+        "CRLF" if "\r\n" in text else "LF", straight, curly, n_dash, prose_text.count("；")), "")
     return rows, stat
 
 
