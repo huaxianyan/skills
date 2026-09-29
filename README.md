@@ -36,7 +36,22 @@ cp -r /tmp/skills/project-conventions <项目路径>/.pi/skills/
 pi --skill /tmp/skills/project-conventions
 ```
 
-装好后不需要额外配置，Pi 会在任务匹配时自动加载。想手动指定用 `/skill:chinese-tech-writing`，改过技能内容后跑一次 `/reload` 生效。
+装好后不需要额外配置，Pi 会在任务匹配时自动加载。想手动指定用 `/skill:chinese-tech-writing`。
+
+### 维护时：让仓库直接生效
+
+自己在维护这个仓库时，不要复制目录，改用本地路径安装。Pi 会直接引用仓库，改完文件就生效：
+
+```bash
+pi install <本仓库的绝对路径>
+```
+
+本地路径源不会被复制到 Pi 目录，也不参与 `pi update`，所以没有同步这一步。要先删掉之前复制过去的手动副本，否则同名技能会冲突，先被发现的那份生效，仓库里的新内容反而用不上。
+
+技能名与描述在会话启动时写进系统提示，正文则在任务匹配时才读取。改完之后的实际影响：
+
+- **新会话**：直接拿到新内容，不需要任何操作。
+- **正在运行的会话**：描述是旧的，正文若还没读取过则已是新的。跑一次 `/reload` 刷新，不用逐个会话交代。
 
 用其他支持 Agent Skills 的工具时，把目标目录换成对应的技能目录即可，例如 Claude Code 是 `~/.claude/skills/` 或 `<项目>/.claude/skills/`。
 
